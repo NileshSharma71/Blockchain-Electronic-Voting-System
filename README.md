@@ -1,36 +1,101 @@
-# NewsVerify
+# 🗳️ Blockchain Electronic Voting System
 
-A decentralized news verification platform. It uses community voting and a confidence engine to verify local news, with everything logged on a local blockchain.
+A decentralized electronic voting platform built on blockchain technology. Every ballot is cryptographically hashed and logged on-chain, ensuring tamper-proof, transparent, and verifiable elections.
 
-Our project proposes a hybrid decentralized news verification system combining reputation weighted
-community review, evidence-based validation, adversarially-aware system design, and blockchain-based
-audit logging. Unlike traditional voting systems, this model does not assume majority opinion equals
-truth. Instead, it introduces a structured verification pipeline where user input is treated as probabilistic
-signals, uncertainty is explicitly modeled, reputation is updated via delayed validation rather than
-immediate consensus, and final decisions are supported by both community input and verification
-layers. Blockchain is used selectively as an immutable audit layer, ensuring transparency and
-tamper-proof record-keeping of submissions, voting activity (hashed), reputation snapshots, and final
-decisions. The system is designed to operate under adversarial conditions, accounting for Sybil attacks,
-coordinated voting, reputation manipulation, and early-stage system capture.
+## Overview
 
-The pipeline has five layers. In the Submission Layer , users upload news content as images, video, or
-text. The media is stored off-chain and a cryptographic hash H is written to the blockchain along with a
-metadata hash covering timestamp, pseudonymous uploader ID, and device fingerprint.
-In the Pre-Processing Layer , each submission passes through automated duplicate detection, basic
-integrity checks, spam filtering, and rate validation before entering the review pool. In the Community
-Review Layer , users vote with a direction and confidence level; each vote is weighted by reputation and
-hashed on-chain. In the Adjudication Layer , items that meet confidence thresholds are classified
-automatically. In the Finalization and Audit Layer , the final classification and its proof hash are
-recorded on-chain and reputation updates are applied.
+This system enables secure electronic voting where:
 
+- **Admins** create elections with multiple candidates and set voting periods
+- **Verified voters** cast one ballot per election — enforced at both database and application level
+- **Every ballot** is SHA-256 hashed and recorded on a local Ethereum blockchain (Hardhat) as an immutable audit trail
+- **Election results** are automatically tallied when the voting period ends, with the result proof hash committed on-chain
+- **Anti-fraud mechanisms** detect and prevent double voting, rapid-fire ballot stuffing, and IP-based Sybil attacks
 
-## Setup 
-- just run the sh file
+The blockchain serves as an **immutable audit layer** — actual ballot data is stored off-chain in MongoDB for performance, while cryptographic hashes are written on-chain so anyone can independently verify that no records were tampered with.
 
-## Details
-- **Main App:** http://localhost:5173 - Where users vote and submit news.
-- **Explorer:** http://localhost:5174/explorer.html - View on-chain logs.
-- **Dashboard:** http://localhost:5175/dashboard.html - View database stats.
+## Tech Stack
 
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Blockchain** | Hardhat + Solidity (v0.8.20) | Local Ethereum node + Smart contracts |
+| **Backend** | Node.js + Express + MongoDB | API server, business logic, data storage |
+| **Frontend** | React (Vite) | Voting interface, explorer, dashboard |
+| **Real-time** | Socket.io | Live vote count updates |
+| **Auth** | JWT | User authentication |
+| **Hashing** | SHA-256 | Ballot integrity verification |
 
+## Architecture
 
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────────┐
+│   Frontend   │────▶│   Backend   │────▶│  MongoDB         │
+│  (React/Vite)│◀────│  (Express)  │◀────│  (Off-chain data)│
+└─────────────┘     └──────┬──────┘     └──────────────────┘
+                           │
+                    ethers.js (JSON-RPC)
+                           │
+                    ┌──────▼──────┐
+                    │  Hardhat    │
+                    │  Blockchain │
+                    │  (On-chain  │
+                    │   audit)    │
+                    └─────────────┘
+```
+
+**How blockchain is used:**
+1. When a voter casts a ballot → `hash(voterId + candidateId + nonce)` is logged on-chain
+2. When an election ends → `hash(electionId + all vote counts)` is logged on-chain
+3. Anyone can query the blockchain explorer to verify these hashes match the off-chain data
+
+## Setup
+
+### Prerequisites
+- Node.js (v18+)
+- MongoDB running locally on default port (27017)
+
+### Run
+```bash
+chmod +x start-all.sh
+./start-all.sh
+```
+
+This will automatically:
+1. Install all dependencies
+2. Start a local Hardhat blockchain (port 8545)
+3. Deploy the smart contract
+4. Start the backend server (port 3001)
+5. Start the frontend apps
+
+### Access Points
+- **Main App:** http://localhost:5173 — Create elections and cast votes
+- **Explorer:** http://localhost:5174/explorer.html — View on-chain ballot logs
+- **Dashboard:** http://localhost:5175/dashboard.html — View election statistics
+
+## Project Structure
+
+```
+├── blockchain/          # Hardhat project
+│   ├── contracts/       # Solidity smart contracts
+│   └── scripts/         # Deployment scripts
+├── backend/             # Express API server
+│   └── src/
+│       ├── models/      # MongoDB schemas (Election, Ballot, User)
+│       ├── routes/      # API endpoints
+│       ├── services/    # Business logic (tally, blockchain, etc.)
+│       ├── middleware/  # Auth, rate limiting, fraud detection
+│       └── utils/       # Hashing, math helpers
+├── frontend/            # React (Vite) app
+│   └── src/
+│       ├── pages/       # Election list, voting, results
+│       └── components/  # Reusable UI components
+└── start-all.sh         # One-command startup script
+```
+
+## Acknowledgments
+
+This project was adapted and modified from the [News Verification System with Blockchain Audit and Reputation Weights](https://github.com/Dhruv-aka-Dp/NewsVerification-System-with-Blockchain-Audit-and-Reputation-Weights) created by [Dhruv-aka-Dp](https://github.com/Dhruv-aka-Dp). The original project's blockchain integration architecture, anti-fraud mechanisms, and hashing infrastructure were repurposed to serve as the foundation for this Electronic Voting System.
+
+## License
+
+This project is for educational purposes.
