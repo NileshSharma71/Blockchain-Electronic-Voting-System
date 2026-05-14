@@ -52,6 +52,7 @@ export default function Navbar() {
       <div className="win-taskbar-divider" />
       <div className="win-taskbar-items">
         <Link to="/" className={`win-taskbar-item ${isActive('/')}`}>🏠 Home</Link>
+        <Link to="/verify" className={`win-taskbar-item ${isActive('/verify')}`}>🔍 Verify</Link>
         {user?.role === 'admin' && (
           <Link to="/create" className={`win-taskbar-item ${isActive('/create')}`}>➕ Create</Link>
         )}

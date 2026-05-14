@@ -9,6 +9,7 @@ import ElectionDetail from './pages/ElectionDetail';
 import CreateElection from './pages/CreateElection';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
+import VerifyVote from './pages/VerifyVote';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
                   <Route path="/create" element={<CreateElection />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/verify" element={<VerifyVote />} />
                 </Routes>
               </div>
             </div>
