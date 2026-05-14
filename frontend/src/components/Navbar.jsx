@@ -5,11 +5,16 @@ import { useState, useEffect } from 'react';
 import { getAdminStats } from '../utils/api';
 
 const DEMO_USERS = [
-  { label: 'admin', email: 'admin@evoting.local', pass: 'demo123' },
+  { label: 'admin (Admin)', email: 'admin@evoting.local', pass: 'demo123' },
   { label: 'rahul_kumar', email: 'rahul@demo.local', pass: 'demo123' },
   { label: 'priya_sharma', email: 'priya@demo.local', pass: 'demo123' },
   { label: 'amit_singh', email: 'amit@demo.local', pass: 'demo123' },
   { label: 'neha_gupta', email: 'neha@demo.local', pass: 'demo123' },
+  { label: 'arjun_verma', email: 'arjun@demo.local', pass: 'demo123' },
+  { label: 'sneha_joshi', email: 'sneha@demo.local', pass: 'demo123' },
+  { label: 'vikram_meena', email: 'vikram@demo.local', pass: 'demo123' },
+  { label: 'ananya_das', email: 'ananya@demo.local', pass: 'demo123' },
+  { label: 'rohit_patel', email: 'rohit@demo.local', pass: 'demo123' },
 ];
 
 export default function Navbar() {
@@ -27,7 +32,7 @@ export default function Navbar() {
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      getAdminStats().then(s => setPendingCount(s.pendingUsers || 0)).catch(() => {});
+      getAdminStats().then(s => setPendingCount(s.pendingUsers || 0)).catch(() => { });
     }
   }, [user]);
 
@@ -39,7 +44,7 @@ export default function Navbar() {
     const u = DEMO_USERS.find(d => d.email === val);
     if (!u) return;
     setSwitching(true);
-    try { await switchUser(u.email, u.pass); } catch {}
+    try { await switchUser(u.email, u.pass); } catch { }
     setSwitching(false);
   }
 

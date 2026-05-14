@@ -59,7 +59,7 @@ export default function VerifyVote() {
           {/* Explanation */}
           <div className="win-group win-mb-8">
             <span className="win-group-label">How Blockchain Verification Works</span>
-            <div style={{ fontSize: 12, lineHeight: 1.7, padding: '4px 0', color: '#333' }}>
+            <div style={{ fontSize: 12, lineHeight: 1.7, padding: '4px 0', color: '#ffffffff' }}>
               <p style={{ margin: '4px 0' }}>📌 When you cast a ballot, a unique <strong>Ballot Hash</strong> is generated from your identity + your choice + a random nonce.</p>
               <p style={{ margin: '4px 0' }}>⛓️ This hash is <strong>permanently recorded on the blockchain</strong> — it cannot be deleted or changed by anyone, including the admin.</p>
               <p style={{ margin: '4px 0' }}>✅ <strong>Anyone</strong> can paste any ballot hash below and verify whether it was truly recorded. No login required.</p>

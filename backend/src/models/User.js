@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, default: null },
   role: { type: String, enum: ['voter', 'admin'], default: 'voter' },
   isVerified: { type: Boolean, default: false },
+  // 'pending' | 'verified' | 'rejected'
+  verificationStatus: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
   verificationNote: { type: String, default: '' },
   votedIn: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Election' }],
   lastVotedAt: { type: Date, default: null },

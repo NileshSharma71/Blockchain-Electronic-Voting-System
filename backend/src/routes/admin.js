@@ -32,10 +32,10 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-// GET /api/admin/pending-users — list unverified users
+// GET /api/admin/pending-users — list unverified users (excludes rejected)
 router.get('/pending-users', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const users = await User.find({ isVerified: false })
+    const users = await User.find({ isVerified: false, verificationStatus: { $ne: 'rejected' } })
       .select('-passwordHash')
       .sort({ createdAt: -1 });
     res.json({ users: users.map(toSafeUser) });
@@ -53,6 +53,7 @@ router.post('/verify-user/:userId', authMiddleware, adminOnly, async (req, res) 
     if (user.isVerified) return res.status(400).json({ error: 'User already verified' });
 
     user.isVerified = true;
+    user.verificationStatus = 'verified';
     user.verificationNote = note || `Verified by admin on ${new Date().toISOString()}`;
     await user.save();
 
@@ -69,10 +70,11 @@ router.post('/reject-user/:userId', authMiddleware, adminOnly, async (req, res) 
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    user.verificationStatus = 'rejected'; // ← key fix: marks as rejected so it leaves the pending queue
     user.verificationNote = `Rejected: ${reason || 'No reason provided'}`;
     await user.save();
 
-    res.json({ message: 'User rejection noted', user: { id: user._id, username: user.username } });
+    res.json({ message: 'User rejected', user: { id: user._id, username: user.username, verificationStatus: 'rejected' } });
   } catch (e) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -114,7 +116,7 @@ router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
       Election.countDocuments(),
       Ballot.countDocuments(),
       Election.countDocuments({ status: 'active' }),
-      User.countDocuments({ isVerified: false }),
+      User.countDocuments({ isVerified: false, verificationStatus: { $ne: 'rejected' } }),
     ]);
     res.json({ totalUsers, totalElections, totalBallots, activeElections, pendingUsers });
   } catch (e) {
