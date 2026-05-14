@@ -185,4 +185,28 @@ router.patch('/:id/close', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// PATCH /api/elections/:id/start — admin force-start an upcoming election early
+router.patch('/:id/start', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const election = await Election.findById(req.params.id);
+    if (!election) return res.status(404).json({ error: 'Election not found' });
+    if (election.status === 'active') {
+      return res.status(400).json({ error: 'Election is already active' });
+    }
+    if (election.status === 'completed') {
+      return res.status(400).json({ error: 'Election is already completed' });
+    }
+
+    // Move startTime to now, activate
+    election.startTime = new Date();
+    election.status = 'active';
+    await election.save();
+
+    res.json({ message: 'Election started successfully', election });
+  } catch (e) {
+    console.error('Election start error:', e);
+    res.status(500).json({ error: e.message || 'Internal server error' });
+  }
+});
+
 module.exports = router;

@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getAdminStats, getAdminUsers, getPendingUsers, verifyUser, rejectUser, getElections, closeElection } from '../utils/api';
+import {
+  getAdminStats, getAdminUsers, getPendingUsers,
+  verifyUser, rejectUser, getElections,
+  closeElection, startElection,
+} from '../utils/api';
+import { showToast } from '../hooks/useToast';
 import StatsCard from '../components/StatsCard';
 
 export default function AdminDashboard() {
@@ -13,8 +18,8 @@ export default function AdminDashboard() {
   const [pending, setPending] = useState([]);
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [closingId, setClosingId] = useState(null);
-  const [confirmClose, setConfirmClose] = useState(null); // election to confirm close
+  const [actionId, setActionId] = useState(null);  // id being acted on
+  const [confirmAction, setConfirmAction] = useState(null); // { id, type: 'close'|'start' }
 
   useEffect(() => {
     if (user?.role !== 'admin') { navigate('/'); return; }
@@ -24,28 +29,89 @@ export default function AdminDashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      if (tab === 'stats')     setStats(await getAdminStats());
-      else if (tab === 'users')    { const d = await getAdminUsers();    setUsers(d.users || []); }
-      else if (tab === 'pending')  { const d = await getPendingUsers();  setPending(d.users || []); }
-      else if (tab === 'elections'){ const d = await getElections();     setElections(d.elections || []); }
+      if (tab === 'stats')      setStats(await getAdminStats());
+      else if (tab === 'users')     { const d = await getAdminUsers();   setUsers(d.users || []); }
+      else if (tab === 'pending')   { const d = await getPendingUsers(); setPending(d.users || []); }
+      else if (tab === 'elections') { const d = await getElections();    setElections(d.elections || []); }
     } catch {}
     setLoading(false);
   }
 
-  async function handleVerify(id) { await verifyUser(id, 'Admin verified'); loadData(); }
-  async function handleReject(id) { await rejectUser(id, 'Rejected by admin'); loadData(); }
+  async function handleVerify(id) {
+    await verifyUser(id, 'Admin verified');
+    showToast('✅ User verified successfully', 'success');
+    loadData();
+  }
+  async function handleReject(id) {
+    await rejectUser(id, 'Rejected by admin');
+    showToast('User rejected', 'warning');
+    loadData();
+  }
 
-  async function handleClose(electionId) {
-    setClosingId(electionId);
-    setConfirmClose(null);
+  async function handleElectionAction(id, type) {
+    setActionId(id);
+    setConfirmAction(null);
     try {
-      await closeElection(electionId);
+      if (type === 'close') {
+        await closeElection(id);
+        showToast('⏹ Election closed and tallied', 'success');
+      } else {
+        await startElection(id);
+        showToast('✅ Election started early!', 'success');
+      }
       await loadData();
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to close election');
+      showToast(e.response?.data?.error || 'Action failed', 'error');
     } finally {
-      setClosingId(null);
+      setActionId(null);
     }
+  }
+
+  function ActionCell({ election }) {
+    const isConfirming = confirmAction?.id === election._id;
+    const isLoading = actionId === election._id;
+
+    if (election.status === 'completed') {
+      return <span className="win-text-small" style={{ color: '#666' }}>✓ Finalized</span>;
+    }
+
+    if (election.status === 'upcoming') {
+      return isConfirming && confirmAction.type === 'start' ? (
+        <div className="win-flex win-gap-4">
+          <button className="win-btn win-btn-primary" style={{ fontSize: 11, padding: '2px 6px' }}
+            disabled={isLoading} onClick={() => handleElectionAction(election._id, 'start')}>
+            {isLoading ? '⏳' : '▶ Confirm Start'}
+          </button>
+          <button className="win-btn" style={{ fontSize: 11, padding: '2px 6px' }}
+            onClick={() => setConfirmAction(null)}>Cancel</button>
+        </div>
+      ) : (
+        <button className="win-btn win-btn-primary" style={{ fontSize: 11, padding: '2px 8px' }}
+          onClick={() => setConfirmAction({ id: election._id, type: 'start' })}>
+          ▶ Start Early
+        </button>
+      );
+    }
+
+    if (election.status === 'active') {
+      return isConfirming && confirmAction.type === 'close' ? (
+        <div className="win-flex win-gap-4">
+          <button className="win-btn win-btn-danger" style={{ fontSize: 11, padding: '2px 6px' }}
+            disabled={isLoading} onClick={() => handleElectionAction(election._id, 'close')}>
+            {isLoading ? '⏳' : '✓ Confirm End'}
+          </button>
+          <button className="win-btn" style={{ fontSize: 11, padding: '2px 6px' }}
+            onClick={() => setConfirmAction(null)}>Cancel</button>
+        </div>
+      ) : (
+        <button className="win-btn win-btn-danger" style={{ fontSize: 11, padding: '2px 8px' }}
+          onClick={() => setConfirmAction({ id: election._id, type: 'close' })}>
+          ⏹ End Now
+        </button>
+      );
+    }
+
+    return null;
   }
 
   return (
@@ -69,18 +135,16 @@ export default function AdminDashboard() {
         <div className="win-tab-content" style={{ margin: '0 8px 8px' }}>
           {loading ? <div className="win-loading">⏳ Loading...</div> : (<>
 
-            {/* Overview */}
             {tab === 'stats' && stats && (
               <div className="win-flex win-gap-8" style={{ flexWrap: 'wrap', padding: '8px 0' }}>
-                <StatsCard icon="👥" label="Total Users"      value={stats.totalUsers} />
-                <StatsCard icon="🗳️" label="Total Elections"  value={stats.totalElections} />
-                <StatsCard icon="📝" label="Total Ballots"    value={stats.totalBallots} />
-                <StatsCard icon="✅" label="Active Elections" value={stats.activeElections} />
-                <StatsCard icon="🔒" label="Pending Voters"  value={stats.pendingUsers} />
+                <StatsCard icon="👥" label="Total Users"       value={stats.totalUsers} />
+                <StatsCard icon="🗳️" label="Total Elections"   value={stats.totalElections} />
+                <StatsCard icon="📝" label="Total Ballots"     value={stats.totalBallots} />
+                <StatsCard icon="✅" label="Active Elections"  value={stats.activeElections} />
+                <StatsCard icon="🔒" label="Pending Voters"   value={stats.pendingUsers} />
               </div>
             )}
 
-            {/* Elections management */}
             {tab === 'elections' && (
               elections.length === 0
                 ? <div className="win-text-small" style={{ padding: 8 }}>No elections yet.</div>
@@ -91,15 +155,13 @@ export default function AdminDashboard() {
                       <th style={{ width: 80 }}>Status</th>
                       <th style={{ width: 60 }}>Votes</th>
                       <th style={{ width: 140 }}>End Time</th>
-                      <th style={{ width: 130 }}>Action</th>
+                      <th style={{ width: 160 }}>Action</th>
                     </tr></thead>
                     <tbody>
                       {elections.map(e => (
                         <tr key={e._id}>
-                          <td
-                            style={{ cursor: 'pointer', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                            onClick={() => navigate(`/election/${e._id}`)}
-                          >
+                          <td style={{ cursor: 'pointer', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            onClick={() => navigate(`/election/${e._id}`)}>
                             {e.title}
                           </td>
                           <td>
@@ -109,43 +171,7 @@ export default function AdminDashboard() {
                           </td>
                           <td style={{ textAlign: 'right' }}>{e.totalVotes || 0}</td>
                           <td className="win-text-small">{new Date(e.endTime).toLocaleString()}</td>
-                          <td>
-                            {e.status === 'active' && (
-                              confirmClose === e._id ? (
-                                <div className="win-flex win-gap-4">
-                                  <button
-                                    className="win-btn win-btn-danger"
-                                    style={{ fontSize: 11, padding: '2px 6px' }}
-                                    disabled={closingId === e._id}
-                                    onClick={() => handleClose(e._id)}
-                                  >
-                                    {closingId === e._id ? '⏳' : '✓ Confirm'}
-                                  </button>
-                                  <button
-                                    className="win-btn"
-                                    style={{ fontSize: 11, padding: '2px 6px' }}
-                                    onClick={() => setConfirmClose(null)}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  className="win-btn win-btn-danger"
-                                  style={{ fontSize: 11, padding: '2px 8px' }}
-                                  onClick={() => setConfirmClose(e._id)}
-                                >
-                                  ⏹ End Now
-                                </button>
-                              )
-                            )}
-                            {e.status === 'completed' && (
-                              <span className="win-text-small" style={{ color: '#666' }}>✓ Finalized</span>
-                            )}
-                            {e.status === 'upcoming' && (
-                              <span className="win-text-small" style={{ color: '#888' }}>Not started</span>
-                            )}
-                          </td>
+                          <td><ActionCell election={e} /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -153,10 +179,11 @@ export default function AdminDashboard() {
                 )
             )}
 
-            {/* Pending voters */}
             {tab === 'pending' && (
               pending.length === 0
-                ? <div className="win-text-small" style={{ padding: 8 }}>No pending users.</div>
+                ? <div className="win-text-small" style={{ padding: 8 }}>
+                    No pending users. New users who register will appear here.
+                  </div>
                 : (
                   <table className="win-table">
                     <thead><tr><th>Username</th><th>Email</th><th>Joined</th><th>Actions</th></tr></thead>
@@ -179,7 +206,6 @@ export default function AdminDashboard() {
                 )
             )}
 
-            {/* All users */}
             {tab === 'users' && (
               <table className="win-table">
                 <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Verified</th><th>Votes Cast</th></tr></thead>
