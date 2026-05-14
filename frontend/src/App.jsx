@@ -4,8 +4,8 @@ import { ThemeProvider } from './hooks/useTheme';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
-import ItemDetail from './pages/ItemDetail';
-import Submit from './pages/Submit';
+import ElectionDetail from './pages/ElectionDetail';
+import CreateElection from './pages/CreateElection';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -20,8 +20,8 @@ export default function App() {
               <div className="app-container">
                 <Routes>
                   <Route path="/" element={<Home />} />
-                  <Route path="/item/:id" element={<ItemDetail />} />
-                  <Route path="/submit" element={<Submit />} />
+                  <Route path="/election/:id" element={<ElectionDetail />} />
+                  <Route path="/create" element={<CreateElection />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/admin" element={<AdminDashboard />} />
                 </Routes>

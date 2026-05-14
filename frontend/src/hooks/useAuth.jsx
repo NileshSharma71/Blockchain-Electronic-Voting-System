@@ -7,14 +7,13 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Auto-login: try saved token first, then auto-login as dp for demo
   useEffect(() => {
-    const token = localStorage.getItem('nv_token');
+    const token = localStorage.getItem('ev_token');
     if (token) {
       getMe()
         .then(u => { setUser(u); setLoading(false); })
         .catch(() => {
-          localStorage.removeItem('nv_token');
+          localStorage.removeItem('ev_token');
           autoLogin();
         });
     } else {
@@ -24,18 +23,12 @@ export function AuthProvider({ children }) {
 
   async function autoLogin() {
     try {
-      const data = await apiLogin('dp@jklu.edu.in', 'demo123');
-      localStorage.setItem('nv_token', data.token);
+      // Auto-login as admin for demo
+      const data = await apiLogin('admin@evoting.local', 'demo123');
+      localStorage.setItem('ev_token', data.token);
       setUser(data.user);
     } catch {
-      // Fallback: try admin
-      try {
-        const data = await apiLogin('admin@newsverify.local', 'admin123');
-        localStorage.setItem('nv_token', data.token);
-        setUser(data.user);
-      } catch {
-        // No users available yet
-      }
+      // No users available yet — that's fine
     }
     setLoading(false);
   }
@@ -43,7 +36,7 @@ export function AuthProvider({ children }) {
   const switchUser = useCallback(async (email, password) => {
     try {
       const data = await apiLogin(email, password);
-      localStorage.setItem('nv_token', data.token);
+      localStorage.setItem('ev_token', data.token);
       setUser(data.user);
       return data;
     } catch (err) {
@@ -52,7 +45,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('nv_token');
+    localStorage.removeItem('ev_token');
     setUser(null);
   }, []);
 

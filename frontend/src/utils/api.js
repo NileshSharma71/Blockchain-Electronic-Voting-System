@@ -6,7 +6,7 @@ const instance = axios.create({
 
 // Attach JWT token to every request
 instance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('nv_token');
+  const token = localStorage.getItem('ev_token');
   if (token) config.headers['Authorization'] = `Bearer ${token}`;
   return config;
 });
@@ -15,51 +15,45 @@ instance.interceptors.request.use((config) => {
 export const login = (email, password) =>
   instance.post('/api/auth/login', { email, password }).then(r => r.data);
 
+export const register = (username, email, password) =>
+  instance.post('/api/auth/register', { username, email, password }).then(r => r.data);
+
 export const getMe = () =>
   instance.get('/api/auth/me').then(r => r.data);
 
-export const getMyVotes = () =>
-  instance.get('/api/auth/votes').then(r => r.data);
+export const getMyBallots = () =>
+  instance.get('/api/auth/my-ballots').then(r => r.data);
 
-export const getMyReputationEvents = (page = 1, limit = 20) =>
-  instance.get('/api/auth/reputation-events', { params: { page, limit } }).then(r => r.data);
+// Elections
+export const getElections = (page = 1, status = '', q = '') =>
+  instance.get('/api/elections', { params: { page, status: status || undefined, q: q || undefined } }).then(r => r.data);
 
-// Demo Endpoints
-export const demoDecay = (days = 5) =>
-  instance.post('/api/auth/demo/decay', { days }).then(r => r.data);
+export const getElection = (id) =>
+  instance.get(`/api/elections/${id}`).then(r => r.data);
 
-export const demoReset = () =>
-  instance.post('/api/auth/demo/reset').then(r => r.data);
+export const createElection = (data) =>
+  instance.post('/api/elections', data).then(r => r.data);
 
-export const demoVote = (outcome) =>
-  instance.post('/api/auth/demo/vote', { outcome }).then(r => r.data);
+// Ballots
+export const castBallot = (electionId, candidateId) =>
+  instance.post('/api/ballots', { electionId, candidateId }).then(r => r.data);
 
-export const seedDemoItems = () =>
-  instance.post('/api/admin/seed-demo').then(r => r.data);
+export const checkVoted = (electionId) =>
+  instance.get(`/api/ballots/check/${electionId}`).then(r => r.data);
 
-// News
-export const getNews = (page = 1, status = '', section = '', q = '') =>
-  instance.get('/api/news', { params: { page, status: status || undefined, section: section || undefined, q: q || undefined } }).then(r => r.data);
+export const getBallots = (electionId) =>
+  instance.get(`/api/ballots/${electionId}`).then(r => r.data);
 
-export const getNewsItem = (id) =>
-  instance.get(`/api/news/${id}`).then(r => r.data);
+// Results
+export const getResult = (electionId) =>
+  instance.get(`/api/results/${electionId}`).then(r => r.data);
 
-export const submitNews = (data) =>
-  instance.post('/api/news', data).then(r => r.data);
-
-export const submitEvidence = (id, urls) =>
-  instance.post(`/api/news/${id}/evidence`, { urls }).then(r => r.data);
-
-// Votes
-export const castVote = (itemId, direction, confidence) =>
-  instance.post('/api/votes', { itemId, direction, confidence }).then(r => r.data);
-
-export const getVotes = (itemId) =>
-  instance.get(`/api/votes/${itemId}`).then(r => r.data);
+export const triggerTally = (electionId) =>
+  instance.post(`/api/results/${electionId}/tally`).then(r => r.data);
 
 // Admin
-export const getAdminQueue = (page = 1) =>
-  instance.get('/api/admin/queue', { params: { page } }).then(r => r.data);
+export const getAdminStats = () =>
+  instance.get('/api/admin/stats').then(r => r.data);
 
 export const getAdminUsers = (page = 1) =>
   instance.get('/api/admin/users', { params: { page } }).then(r => r.data);
@@ -73,5 +67,9 @@ export const verifyUser = (userId, note) =>
 export const rejectUser = (userId, reason) =>
   instance.post(`/api/admin/reject-user/${userId}`, { reason }).then(r => r.data);
 
-export const manualClassify = (itemId, classification) =>
-  instance.post(`/api/admin/classify/${itemId}`, { classification }).then(r => r.data);
+// Blockchain
+export const getBlockchainHealth = () =>
+  instance.get('/api/blockchain/health').then(r => r.data);
+
+export const getBlockchainStats = () =>
+  instance.get('/api/blockchain/stats').then(r => r.data);

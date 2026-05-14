@@ -1,45 +1,43 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getNews } from '../utils/api';
-import NewsCard from '../components/NewsCard';
+import { getElections } from '../utils/api';
+import ElectionCard from '../components/ElectionCard';
 import SearchBar from '../components/SearchBar';
 import StatsCard from '../components/StatsCard';
 
-const SECTIONS = ['All', 'National News', 'Local Rajasthan', 'JKLU Campus', 'Tech & Startup', 'Crime & Safety', 'Events'];
+const TABS = ['All', 'active', 'upcoming', 'completed'];
 
 export default function Home() {
   const [searchParams] = useSearchParams();
-  const [items, setItems] = useState([]);
+  const [elections, setElections] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [section, setSection] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const qStatus = searchParams.get('status') || '';
   const qSearch = searchParams.get('q') || '';
 
   useEffect(() => {
     setLoading(true);
-    getNews(page, qStatus, section === 'All' ? '' : section, qSearch)
+    getElections(page, statusFilter === 'All' ? '' : statusFilter, qSearch)
       .then(data => {
-        setItems(prev => page === 1 ? data.items : [...prev, ...data.items]);
+        setElections(prev => page === 1 ? data.elections : [...prev, ...data.elections]);
         setTotal(data.total);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [page, qStatus, section, qSearch]);
+  }, [page, statusFilter, qSearch]);
 
   useEffect(() => {
     setPage(1);
-    setItems([]);
-  }, [qStatus, section, qSearch]);
+    setElections([]);
+  }, [statusFilter, qSearch]);
 
   return (
     <div>
-      {/* Window frame */}
       <div className="win-window win-mb-8">
         <div className="win-titlebar">
-          <span className="win-titlebar-text">📰 NewsVerify — News Verification Platform</span>
+          <span className="win-titlebar-text">🗳️ Blockchain Electronic Voting System</span>
           <div className="win-titlebar-buttons">
             <span className="win-titlebar-btn">_</span>
             <span className="win-titlebar-btn">□</span>
@@ -48,44 +46,44 @@ export default function Home() {
         <div className="win-content">
           {/* Stats */}
           <div className="win-flex win-gap-8 win-mb-8" style={{ flexWrap: 'wrap' }}>
-            <StatsCard icon="📋" label="Total Items" value={total} />
-            <StatsCard icon="✓" label="Classified" value={items.filter(i => i.status === 'classified').length} />
-            <StatsCard icon="⏳" label="Pending" value={items.filter(i => i.status === 'pending').length} />
-            <StatsCard icon="🔍" label="In Review" value={items.filter(i => i.status === 'pending_review').length} />
+            <StatsCard icon="🗳️" label="Total Elections" value={total} />
+            <StatsCard icon="✅" label="Active" value={elections.filter(e => e.status === 'active').length} />
+            <StatsCard icon="📅" label="Upcoming" value={elections.filter(e => e.status === 'upcoming').length} />
+            <StatsCard icon="📊" label="Completed" value={elections.filter(e => e.status === 'completed').length} />
           </div>
 
           {/* Search */}
           <SearchBar />
 
-          {/* Section tabs */}
+          {/* Status tabs */}
           <div className="win-tabs win-mb-4">
-            {SECTIONS.map(s => (
+            {TABS.map(s => (
               <button
                 key={s}
-                className={`win-tab ${(section || 'All') === s ? 'active' : ''}`}
-                onClick={() => { setSection(s === 'All' ? '' : s); }}
+                className={`win-tab ${(statusFilter || 'All') === s ? 'active' : ''}`}
+                onClick={() => setStatusFilter(s === 'All' ? '' : s)}
               >
-                {s}
+                {s === 'All' ? '📋 All' : s === 'active' ? '✅ Active' : s === 'upcoming' ? '📅 Upcoming' : '📊 Completed'}
               </button>
             ))}
           </div>
 
-          {/* Tab content */}
+          {/* Election list */}
           <div className="win-tab-content">
-            {loading && items.length === 0 ? (
-              <div className="win-loading">⏳ Loading news items...</div>
-            ) : items.length === 0 ? (
-              <div className="win-loading">No items found.</div>
+            {loading && elections.length === 0 ? (
+              <div className="win-loading">⏳ Loading elections...</div>
+            ) : elections.length === 0 ? (
+              <div className="win-loading">No elections found.</div>
             ) : (
               <div className="win-flex-col win-gap-4">
-                {items.map(item => (
-                  <NewsCard key={item._id} item={item} />
+                {elections.map(election => (
+                  <ElectionCard key={election._id} election={election} />
                 ))}
               </div>
             )}
 
             {/* Load More */}
-            {items.length < total && (
+            {elections.length < total && (
               <div className="win-text-center win-mt-8">
                 <button
                   className="win-btn win-btn-primary"
@@ -99,13 +97,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Status bar */}
         <div className="win-statusbar">
-          <div className="win-statusbar-section">
-            {total} items total
-          </div>
+          <div className="win-statusbar-section">{total} elections total</div>
           <div className="win-statusbar-section" style={{ flex: 0, minWidth: 140 }}>
-            Section: {section || 'All'}
+            Filter: {statusFilter || 'All'}
           </div>
           <div className="win-statusbar-section" style={{ flex: 0, minWidth: 100 }}>
             Page {page}
