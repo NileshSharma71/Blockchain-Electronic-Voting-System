@@ -36,9 +36,9 @@ const DEMO_ELECTIONS = [
     startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000),
     endTime:   new Date(now.getTime() + 22 * 60 * 60 * 1000),
     status: 'active',
-    // voters: rahul, priya, amit, arjun — 4 pre-seeded votes
-    seedVotes: ['rahul@demo.local', 'priya@demo.local', 'amit@demo.local', 'arjun@demo.local'],
-    seedChoices: [0, 1, 0, 2], // index into candidates
+    // 6 of 9 voters have already voted — 3 left for demo
+    seedVotes:   ['rahul@demo.local', 'priya@demo.local', 'amit@demo.local', 'arjun@demo.local', 'sneha@demo.local', 'vikram@demo.local'],
+    seedChoices: [0, 1, 0, 2, 1, 0], // Aarav:3, Diya:2, Karan:1
   },
 
   // 2. Active — quick referendum, ends soon
@@ -52,8 +52,8 @@ const DEMO_ELECTIONS = [
     startTime: new Date(now.getTime() - 18 * 60 * 60 * 1000),
     endTime:   new Date(now.getTime() + 5 * 60 * 60 * 1000),
     status: 'active',
-    seedVotes: ['sneha@demo.local', 'vikram@demo.local', 'ananya@demo.local'],
-    seedChoices: [0, 0, 1],
+    seedVotes:   ['ananya@demo.local'],
+    seedChoices: [0],
   },
 
   // 3. Upcoming — starts tomorrow
