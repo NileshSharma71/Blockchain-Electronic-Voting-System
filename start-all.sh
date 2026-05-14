@@ -59,13 +59,14 @@ for i in $(seq 1 15); do
   sleep 1
 done
 
-# 2. Deploy contracts
+# 2. Deploy contracts (synchronous — backend must start AFTER this so it reads the address)
 echo "📜 Deploying BallotAuditRegistry smart contract..."
-cd "$DIR/blockchain" && npx hardhat run scripts/deploy.js --network localhost 2>&1 | grep -E "deployed to:|written to|exported" || true
+cd "$DIR/blockchain" && npx hardhat run scripts/deploy.js --network localhost 2>&1 | grep -E "deployed to:|written to|exported|Error" || true
+sleep 1  # Ensure .env write is flushed before backend reads it
 
-# 3. Start backend
+# 3. Start backend (started AFTER deploy so BALLOT_AUDIT_REGISTRY_ADDRESS is in .env)
 echo "🔧 Starting backend server..."
-cd "$DIR/backend" && node src/server.js > /dev/null 2>&1 &
+cd "$DIR/backend" && node -r dotenv/config src/server.js > /dev/null 2>&1 &
 BACKEND_PID=$!
 
 for i in $(seq 1 30); do
