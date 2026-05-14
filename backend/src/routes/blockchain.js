@@ -1,5 +1,7 @@
 const express = require('express');
 const Ballot = require('../models/Ballot');
+const User = require('../models/User');
+const Election = require('../models/Election');
 const blockchainService = require('../services/blockchainService');
 
 const router = express.Router();
@@ -44,6 +46,20 @@ router.get('/results', async (req, res) => {
     const result = await blockchainService.getResultEvents(page, limit);
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/blockchain/dashboard-dump — public DB dump for the port 5175 Dashboard UI
+router.get('/dashboard-dump', async (req, res) => {
+  try {
+    const [users, elections, ballots] = await Promise.all([
+      User.find().select('-passwordHash').sort({ createdAt: -1 }),
+      Election.find().sort({ createdAt: -1 }),
+      Ballot.find().sort({ createdAt: -1 }),
+    ]);
+    res.json({ users, elections, ballots });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;

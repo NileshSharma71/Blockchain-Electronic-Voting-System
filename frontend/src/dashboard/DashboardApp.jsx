@@ -1,77 +1,74 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../hooks/useTheme';
-import InfoIcon from '../components/InfoIcon';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const f = (url) => fetch(`${API}${url}`).then(r => r.json());
-
-function getTier(r) {
-  if (r >= 70) return { label: 'Trusted', cls: 'win-badge-true' };
-  if (r >= 30) return { label: 'Standard', cls: 'win-badge-uncertain' };
-  return { label: 'New', cls: 'win-badge-pending' };
-}
-
-function formatDateTime(value) {
-  if (!value) return '—';
-  return new Date(value).toLocaleString();
-}
+const f = (url) => fetch(`${API}${url}`, { credentials: 'include' }).then(r => r.json()).catch(() => null);
 
 export default function DashboardApp() {
   const { theme, toggle } = useTheme();
   const [tab, setTab] = useState('overview');
+  const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
-  const [news, setNews] = useState([]);
-  const [newsTotal, setNewsTotal] = useState(0);
-  const [userTotal, setUserTotal] = useState(0);
+  const [elections, setElections] = useState([]);
+  const [ballots, setBallots] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [newsPage, setNewsPage] = useState(1);
 
-  // Load users
   useEffect(() => {
     Promise.all([
-      f('/api/news/leaderboard?page=1&limit=100'),
-      f('/api/news?page=1'),
-    ])
-      .then(([userData, newsData]) => {
-        setUsers(userData.users || []);
-        setUserTotal(userData.total || 0);
-        setNewsTotal(newsData.total || 0);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      f('/api/blockchain/stats'),
+      f('/api/blockchain/dashboard-dump'),
+    ]).then(([chainStats, dumpData]) => {
+      if (dumpData) {
+        setUsers(dumpData.users || []);
+        setElections(dumpData.elections || []);
+        setBallots(dumpData.ballots || []);
+
+        const activeElections = (dumpData.elections || []).filter(e => e.status === 'active').length;
+        const pendingUsers = (dumpData.users || []).filter(u => !u.isVerified).length;
+        
+        setStats({
+          chain: chainStats,
+          admin: {
+            totalUsers: (dumpData.users || []).length,
+            pendingUsers,
+            totalElections: (dumpData.elections || []).length,
+            activeElections,
+            totalBallots: (dumpData.ballots || []).length,
+          },
+        });
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
-  // Load news when on documents tab
   useEffect(() => {
-    if (tab === 'documents') {
-      f(`/api/news?page=${newsPage}`)
-        .then(d => { setNews(d.items || []); setNewsTotal(d.total || 0); })
-        .catch(() => {});
-    }
-  }, [tab, newsPage]);
+    // Tab switching no longer requires individual fetches since we have the full dump
+    setSelected(null);
+  }, [tab]);
+
 
   const sel = selected ? users.find(u => u._id === selected) : null;
 
-  // Stats
-  const totalUsers = userTotal;
-  const verifiedUsers = users.filter(u => u.isVerified).length;
-  const trustedUsers = users.filter(u => (u.effectiveReputation ?? u.reputation) >= 70).length;
+  function statusColor(s) {
+    return s === 'active' ? 'win-badge-true' : s === 'upcoming' ? 'win-badge-review' : 'win-badge-pending';
+  }
 
   return (
     <div className="win-desktop">
       <div className="win-taskbar">
         <div className="win-start-btn">
           <span style={{ fontSize: 14 }}>🗄️</span>
-          <span>Off-Chain Storage</span>
+          <span>E-Vote DB</span>
         </div>
         <div className="win-taskbar-divider" />
         <div className="win-taskbar-items">
-          <span className={`win-taskbar-item ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>📊 Overview</span>
-          <span className={`win-taskbar-item ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>👥 User Activity</span>
-          <span className={`win-taskbar-item ${tab === 'documents' ? 'active' : ''}`} onClick={() => setTab('documents')}>📄 Documents</span>
+          <span className={`win-taskbar-item ${tab === 'overview'   ? 'active' : ''}`} onClick={() => setTab('overview')}>📊 Overview</span>
+          <span className={`win-taskbar-item ${tab === 'elections'  ? 'active' : ''}`} onClick={() => setTab('elections')}>🗳️ Elections</span>
+          <span className={`win-taskbar-item ${tab === 'users'      ? 'active' : ''}`} onClick={() => setTab('users')}>👥 Voters</span>
+          <span className={`win-taskbar-item ${tab === 'ballots'    ? 'active' : ''}`} onClick={() => setTab('ballots')}>🧾 Ballots</span>
         </div>
-        <button className="win-btn" onClick={toggle} style={{minWidth:'auto',padding:'2px 8px',fontSize:11}}>
+        <button className="win-btn" onClick={toggle} style={{ minWidth: 'auto', padding: '2px 8px', fontSize: 11 }}>
           {theme === 'win98' ? '🎨 Modern' : '💾 Win98'}
         </button>
         <div className="win-taskbar-clock">Port 5175</div>
@@ -80,169 +77,180 @@ export default function DashboardApp() {
       <div className="app-container">
         <div className="win-window">
           <div className="win-titlebar">
-            <span className="win-titlebar-text">🗄️ Off-Chain Storage Visualization — MongoDB</span>
+            <span className="win-titlebar-text">🗄️ Off-Chain Storage — MongoDB E-Voting Database</span>
           </div>
           <div className="win-content">
-            {loading ? <div className="win-loading">⏳ Loading database...</div> : (
-              <>
-                {/* ── OVERVIEW TAB ── */}
-                {tab === 'overview' && (
-                  <div>
-                    <div className="win-group win-mb-8">
-                      <span className="win-group-label">Database Info</span>
-                      <table className="win-table"><tbody>
-                        <tr><td style={{fontWeight:700}}>Engine</td><td>MongoDB (In-Memory / Atlas)</td></tr>
-                        <tr><td style={{fontWeight:700}}>Collections</td><td>users, newsitems, votes, decisions, reputationevents</td></tr>
-                        <tr><td style={{fontWeight:700}}>Status</td><td><span className="win-text-success">● Connected</span></td></tr>
-                      </tbody></table>
-                    </div>
+            {loading ? <div className="win-loading">⏳ Loading database...</div> : (<>
 
-                    <div className="win-group win-mb-8">
-                      <span className="win-group-label">Collection Counts</span>
-                      <div className="win-flex win-gap-8" style={{padding:'8px 0',flexWrap:'wrap'}}>
-                        <div className="win-group" style={{flex:1,textAlign:'center',minWidth:100}}>
-                          <span className="win-group-label">Users</span>
-                          <div style={{fontSize:28,fontWeight:900,padding:'8px 0'}}>{totalUsers}</div>
-                        </div>
-                        <div className="win-group" style={{flex:1,textAlign:'center',minWidth:100}}>
-                          <span className="win-group-label">News Items</span>
-                          <div style={{fontSize:28,fontWeight:900,padding:'8px 0'}}>{newsTotal || '—'}</div>
-                        </div>
-                        <div className="win-group" style={{flex:1,textAlign:'center',minWidth:100}}>
-                          <span className="win-group-label">Verified Users</span>
-                          <div style={{fontSize:28,fontWeight:900,padding:'8px 0'}}>{verifiedUsers}</div>
-                        </div>
-                        <div className="win-group" style={{flex:1,textAlign:'center',minWidth:100}}>
-                          <span className="win-group-label">Trusted Tier</span>
-                          <div style={{fontSize:28,fontWeight:900,padding:'8px 0'}}>{trustedUsers}</div>
-                        </div>
-                      </div>
-                    </div>
+              {/* Overview */}
+              {tab === 'overview' && (
+                <div>
+                  <div className="win-group win-mb-8">
+                    <span className="win-group-label">Database Info</span>
+                    <table className="win-table"><tbody>
+                      <tr><td style={{ fontWeight: 700 }}>Engine</td>    <td>MongoDB (localhost:27017/evoting)</td></tr>
+                      <tr><td style={{ fontWeight: 700 }}>Collections</td><td>users, elections, ballots, electionresults</td></tr>
+                      <tr><td style={{ fontWeight: 700 }}>Status</td>     <td><span className="win-text-success">● Connected</span></td></tr>
+                    </tbody></table>
+                  </div>
 
-                    <div className="win-group">
-                      <span className="win-group-label">Tier Distribution</span>
-                      <div style={{padding:'8px 0'}}>
-                        {['Trusted', 'Standard', 'New'].map(tier => {
-                          const count = users.filter(u => getTier(u.effectiveReputation ?? u.reputation).label === tier).length;
-                          const pct = totalUsers > 0 ? (count / totalUsers * 100) : 0;
-                          const colors = { Trusted: '#008000', Standard: '#808000', New: '#808080' };
-                          return (
-                            <div key={tier} className="win-flex win-gap-8 win-items-center" style={{marginBottom:4}}>
-                              <span className="win-text-small" style={{width:70,fontWeight:600}}>{tier}</span>
-                              <div className="win-progress" style={{flex:1,height:12}}>
-                                <div style={{width:`${pct}%`,height:'100%',background:colors[tier],transition:'width 0.3s'}}/>
-                              </div>
-                              <span className="win-text-small" style={{width:40,textAlign:'right'}}>{count}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                  <div className="win-group win-mb-8">
+                    <span className="win-group-label">Collection Counts</span>
+                    <div className="win-flex win-gap-8" style={{ padding: '8px 0', flexWrap: 'wrap' }}>
+                      {[
+                        { label: 'Total Users',      val: stats?.admin?.totalUsers       || 0, icon: '👥' },
+                        { label: 'Total Elections',  val: stats?.admin?.totalElections   || 0, icon: '🗳️' },
+                        { label: 'Total Ballots',    val: stats?.admin?.totalBallots     || 0, icon: '🧾' },
+                        { label: 'Active Elections', val: stats?.admin?.activeElections  || 0, icon: '✅' },
+                        { label: 'Pending Voters',  val: stats?.admin?.pendingUsers      || 0, icon: '🔒' },
+                        { label: 'On-Chain Ballots',val: stats?.chain?.totalBallots      || 0, icon: '⛓️' },
+                      ].map(c => (
+                        <div key={c.label} className="win-group" style={{ flex: 1, textAlign: 'center', minWidth: 100 }}>
+                          <span className="win-group-label">{c.label}</span>
+                          <div style={{ fontSize: 24, fontWeight: 900, padding: '8px 0' }}>{c.icon} {c.val}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )}
 
-                {/* ── USERS TAB ── */}
-                {tab === 'users' && (
-                  <div>
-                    <div className="win-flex win-gap-8" style={{ alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="win-text-small win-mb-4" style={{fontWeight:700}}>User Activity ({totalUsers} total)</div>
-                        <table className="win-table">
-                          <thead><tr><th>User</th><th>Role</th><th>Base Rep</th><th>Effective Rep</th><th>Last Interaction</th><th>Verified</th><th>Submissions</th><th>Accuracy<InfoIcon variable="accuracy" title="Click to learn about accuracy" /></th></tr></thead>
-                          <tbody>
-                            {users.map(u => {
-                              const tier = getTier(u.effectiveReputation ?? u.reputation);
-                              const acc = u.totalSubmissions > 0 ? Math.min((u.correctSubmissions||0) / u.totalSubmissions, 1) * 100 : 0;
-                              return (
-                                <tr key={u._id} className={selected === u._id ? 'selected' : ''} style={{ cursor: 'pointer' }} onClick={() => setSelected(u._id)}>
-                                  <td>{u.username}</td>
-                                  <td>{u.is_reviewer ? 'Reviewer' : u.is_seed ? 'Seed' : 'User'}</td>
-                                  <td>{(u.reputation ?? 0).toFixed(2)}</td>
-                                  <td><span className={`win-badge ${tier.cls}`}>{(u.effectiveReputation ?? u.reputation ?? 0).toFixed(2)}</span></td>
-                                  <td className="win-text-small">{formatDateTime(u.lastValidatedActivity)}</td>
-                                  <td>{u.isVerified ? '✓' : '⊘'}</td>
-                                  <td>{u.totalSubmissions || 0}</td>
-                                  <td>{acc.toFixed(0)}%</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* User detail panel */}
-                      {sel && (
-                        <div style={{ width: 280 }}>
-                          <div className="win-window">
-                            <div className="win-titlebar">
-                              <span className="win-titlebar-text">👤 {sel.username}</span>
-                              <div className="win-titlebar-buttons">
-                                <span className="win-titlebar-btn" onClick={() => setSelected(null)}>✕</span>
-                              </div>
-                            </div>
-                            <div className="win-content">
-                              <div className="win-flex win-justify-center win-mb-8">
-                                <span className={`win-badge ${getTier(sel.effectiveReputation ?? sel.reputation).cls}`} style={{fontSize:16,padding:'6px 20px'}}>
-                                  {getTier(sel.effectiveReputation ?? sel.reputation).label}
-                                </span>
-                              </div>
-                              <table className="win-table">
-                                <tbody>
-                                  <tr><td style={{fontWeight:700}}>Role</td><td>{sel.is_reviewer ? 'Reviewer' : sel.is_seed ? 'Seed' : 'User'}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Base Reputation</td><td>{(sel.reputation ?? 0).toFixed(2)}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Effective Reputation</td><td>{(sel.effectiveReputation ?? sel.reputation ?? 0).toFixed(2)}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Submissions</td><td>{sel.totalSubmissions || 0}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Correct</td><td>{sel.correctSubmissions || 0}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Accuracy<InfoIcon variable="accuracy" title="Click to learn about accuracy" /></td><td>{sel.totalSubmissions ? (Math.min((sel.correctSubmissions||0) / sel.totalSubmissions, 1) * 100).toFixed(0) + '%' : '—'}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Verified</td><td>{sel.isVerified ? '✓ Yes' : '⊘ No'}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Can Vote</td><td>{sel.canVote ? '✓ Yes' : '⊘ No'}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Anomaly Eta</td><td>{sel.anomalyEta ?? 1}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Last Interaction</td><td>{formatDateTime(sel.lastValidatedActivity)}</td></tr>
-                                  <tr><td style={{fontWeight:700}}>Joined</td><td>{new Date(sel.createdAt).toLocaleDateString()}</td></tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                  <div className="win-group">
+                    <span className="win-group-label">Data Architecture</span>
+                    <div style={{ fontSize: 12, lineHeight: 1.7, padding: '4px 0' }}>
+                      <p style={{ margin: '4px 0' }}>💾 <strong>MongoDB</strong> stores all raw data: user accounts, elections, ballots, and results.</p>
+                      <p style={{ margin: '4px 0' }}>⛓️ <strong>Blockchain</strong> stores only cryptographic hashes — used to verify data was not tampered with.</p>
+                      <p style={{ margin: '4px 0' }}>🔒 <strong>Voter identity</strong> is hashed before being stored anywhere — even MongoDB only stores internal IDs.</p>
+                      <p style={{ margin: '4px 0' }}>📋 <strong>Ballot collection</strong>: each document has electionId, voterId, candidateId, ballotHash, nonce, voterIpHash, onChainTxHash.</p>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* ── DOCUMENTS TAB ── */}
-                {tab === 'documents' && (
-                  <div>
-                    <div className="win-text-small win-mb-4" style={{fontWeight:700}}>NewsItem Documents ({newsTotal} total)</div>
+              {/* Elections */}
+              {tab === 'elections' && (
+                <div>
+                  <div className="win-text-small win-mb-4" style={{ fontWeight: 700 }}>Elections Collection ({elections.length} documents)</div>
+                  {elections.length === 0
+                    ? <div className="win-text-small" style={{ color: '#888', padding: 8 }}>No elections yet.</div>
+                    : (
+                      <table className="win-table">
+                        <thead><tr><th>Title</th><th>Status</th><th>Candidates</th><th>Votes</th><th>Start</th><th>End</th></tr></thead>
+                        <tbody>
+                          {elections.map(e => (
+                            <tr key={e._id}>
+                              <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</td>
+                              <td><span className={`win-badge ${statusColor(e.status)}`}>{e.status}</span></td>
+                              <td style={{ textAlign: 'right' }}>{e.candidates?.length || 0}</td>
+                              <td style={{ textAlign: 'right' }}>{e.totalVotes || 0}</td>
+                              <td style={{ fontSize: 11 }}>{new Date(e.startTime).toLocaleString()}</td>
+                              <td style={{ fontSize: 11 }}>{new Date(e.endTime).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )
+                  }
+                </div>
+              )}
+
+              {/* Voters */}
+              {tab === 'users' && (
+                <div className="win-flex win-gap-8" style={{ alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="win-text-small win-mb-4" style={{ fontWeight: 700 }}>Users Collection ({users.length} documents)</div>
                     <table className="win-table">
-                      <thead><tr><th>#</th><th>Title</th><th>Section</th><th>Status</th><th>Classification</th><th>Votes<InfoIcon variable="voteCount" title="Click to learn about vote count" /></th></tr></thead>
+                      <thead><tr><th>Username</th><th>Role</th><th>Verified</th><th>Status</th><th>Votes Cast</th><th>Joined</th></tr></thead>
                       <tbody>
-                        {news.map((n, i) => (
-                          <tr key={n._id}>
-                            <td>{(newsPage-1)*20 + i + 1}</td>
-                            <td style={{maxWidth:250,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.title}</td>
-                            <td>{n.section}</td>
-                            <td><span className={`win-badge ${n.status==='classified'?'win-badge-true':n.status==='pending_review'?'win-badge-review':'win-badge-pending'}`}>{n.status}</span></td>
-                            <td>{n.classification || '—'}</td>
-                            <td>{n.voteCount || 0}</td>
+                        {users.map(u => (
+                          <tr key={u._id} style={{ cursor: 'pointer', background: selected === u._id ? 'rgba(0,0,128,0.05)' : '' }}
+                            onClick={() => setSelected(u._id)}>
+                            <td style={{ fontWeight: selected === u._id ? 700 : 400 }}>{u.username}</td>
+                            <td>{u.role === 'admin' ? '🛡️ Admin' : '🗳️ Voter'}</td>
+                            <td>{u.isVerified ? '✓ Yes' : '⊘ No'}</td>
+                            <td>
+                              <span className={`win-badge ${u.verificationStatus === 'verified' ? 'win-badge-true' : u.verificationStatus === 'rejected' ? 'win-badge-false' : 'win-badge-pending'}`}>
+                                {u.verificationStatus || 'pending'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>{u.votedIn?.length || 0}</td>
+                            <td style={{ fontSize: 11 }}>{new Date(u.createdAt).toLocaleDateString()}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    {newsTotal > 20 && (
-                      <div className="win-flex win-gap-4 win-justify-center win-mt-8">
-                        <button className="win-btn" disabled={newsPage <= 1} onClick={() => setNewsPage(p => p - 1)}>◀ Prev</button>
-                        <span className="win-text-small" style={{padding:'4px 8px'}}>Page {newsPage}</span>
-                        <button className="win-btn" onClick={() => setNewsPage(p => p + 1)}>Next ▶</button>
-                      </div>
-                    )}
                   </div>
-                )}
-              </>
-            )}
+
+                  {sel && (
+                    <div style={{ width: 240, flexShrink: 0 }}>
+                      <div className="win-window">
+                        <div className="win-titlebar">
+                          <span className="win-titlebar-text">👤 {sel.username}</span>
+                          <div className="win-titlebar-buttons">
+                            <span className="win-titlebar-btn" onClick={() => setSelected(null)}>✕</span>
+                          </div>
+                        </div>
+                        <div className="win-content">
+                          <table className="win-table"><tbody>
+                            <tr><td style={{ fontWeight: 700 }}>ID</td><td style={{ fontSize: 10, fontFamily: 'monospace', wordBreak: 'break-all' }}>{sel._id}</td></tr>
+                            <tr><td style={{ fontWeight: 700 }}>Role</td><td>{sel.role}</td></tr>
+                            <tr><td style={{ fontWeight: 700 }}>Verified</td><td>{sel.isVerified ? '✓ Yes' : '⊘ No'}</td></tr>
+                            <tr><td style={{ fontWeight: 700 }}>Status</td><td>{sel.verificationStatus || 'pending'}</td></tr>
+                            <tr><td style={{ fontWeight: 700 }}>Votes Cast</td><td>{sel.votedIn?.length || 0}</td></tr>
+                            <tr><td style={{ fontWeight: 700 }}>Joined</td><td>{new Date(sel.createdAt).toLocaleDateString()}</td></tr>
+                          </tbody></table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Ballots */}
+              {tab === 'ballots' && (
+                <div>
+                  <div className="win-text-small win-mb-4" style={{ fontWeight: 700 }}>Ballots Collection (showing up to 50 recent)</div>
+                  <div className="win-text-small win-mb-4" style={{ color: '#666' }}>
+                    Voter identity is never stored in plain text. candidateId and ballotHash allow cross-referencing with the blockchain.
+                  </div>
+                  {ballots.length === 0
+                    ? <div className="win-text-small" style={{ color: '#888', padding: 8 }}>No ballots yet. Cast a vote first!</div>
+                    : (
+                      <table className="win-table">
+                        <thead><tr>
+                          <th>Election</th>
+                          <th>Ballot Hash</th>
+                          <th>On-Chain Tx</th>
+                          <th>Cast At</th>
+                        </tr></thead>
+                        <tbody>
+                          {ballots.map((b, i) => (
+                            <tr key={i}>
+                              <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>
+                                {b.electionTitle}
+                              </td>
+                              <td style={{ fontFamily: 'monospace', fontSize: 10 }} title={b.ballotHash}>
+                                {b.ballotHash?.slice(0, 12)}...{b.ballotHash?.slice(-6)}
+                              </td>
+                              <td style={{ fontFamily: 'monospace', fontSize: 10 }}>
+                                {b.onChainTxHash
+                                  ? <span style={{ color: '#005000' }}>{b.onChainTxHash.slice(0, 10)}...</span>
+                                  : <span style={{ color: '#888' }}>Off-chain only</span>
+                                }
+                              </td>
+                              <td style={{ fontSize: 11 }}>{new Date(b.createdAt).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )
+                  }
+                </div>
+              )}
+
+            </>)}
           </div>
           <div className="win-statusbar">
             <div className="win-statusbar-section">● Connected to MongoDB</div>
-            <div className="win-statusbar-section" style={{flex:0,minWidth:120}}>Tab: {tab}</div>
+            <div className="win-statusbar-section" style={{ flex: 0, minWidth: 120 }}>Tab: {tab}</div>
           </div>
         </div>
       </div>

@@ -73,7 +73,13 @@ async function getHealth() {
     const p = getProvider();
     const blockNumber = await p.getBlockNumber();
     const network = await p.getNetwork();
-    return { connected: true, blockNumber, chainId: Number(network.chainId), rpcUrl: process.env.HARDHAT_RPC_URL || 'http://localhost:8545' };
+    return {
+      connected: true,
+      blockNumber,
+      chainId: Number(network.chainId),
+      rpcUrl: process.env.HARDHAT_RPC_URL || 'http://localhost:8545',
+      contractAddress: process.env.BALLOT_AUDIT_REGISTRY_ADDRESS || null
+    };
   } catch (e) { return { connected: false, error: e.message }; }
 }
 

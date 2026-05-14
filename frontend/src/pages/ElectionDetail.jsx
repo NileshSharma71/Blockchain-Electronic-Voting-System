@@ -14,6 +14,8 @@ export default function ElectionDetail() {
   const [election, setElection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasVoted, setHasVoted] = useState(false);
+  const [myBallotHash, setMyBallotHash] = useState(null);
+  const [justVoted, setJustVoted] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -22,6 +24,7 @@ export default function ElectionDetail() {
     ]).then(([electionData, voteData]) => {
       setElection(electionData);
       setHasVoted(voteData.hasVoted);
+      setMyBallotHash(voteData.ballotHash);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [id, user]);
@@ -102,20 +105,29 @@ export default function ElectionDetail() {
             />
           </div>
 
-          {/* Ballot panel */}
-          {isActive && !hasVoted && user && (
+          {/* Ballot panel — Render if they haven't voted OR if they just voted (so the receipt stays visible) */}
+          {isActive && (!hasVoted || justVoted) && user && (
             <BallotPanel
               election={election}
-              onVoted={() => {
-                setHasVoted(true);
+              onVoted={(hash) => {
+                setJustVoted(true);
+                setMyBallotHash(hash);
                 getElection(id).then(setElection);
               }}
             />
           )}
 
-          {hasVoted && (
+          {hasVoted && !justVoted && (
             <div style={{ padding: '8px 12px', background: 'rgba(0,128,0,0.08)', border: '1px solid #008000', borderRadius: 4, fontSize: 12, marginBottom: 8 }}>
-              ✓ Your ballot has been cast and recorded on the blockchain. Thank you for voting!
+              <div style={{ fontWeight: 700, color: '#005000', marginBottom: 4 }}>
+                ✓ Your ballot has been cast and recorded on the blockchain. Thank you for voting!
+              </div>
+              {myBallotHash && (
+                <div style={{ marginTop: 8, padding: '6px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: 3 }}>
+                  <span style={{ fontWeight: 700, display: 'block', marginBottom: 2 }}>Your Ballot Hash:</span>
+                  <code style={{ userSelect: 'all', fontSize: 11, wordBreak: 'break-all', color: '#333' }}>{myBallotHash}</code>
+                </div>
+              )}
             </div>
           )}
 
