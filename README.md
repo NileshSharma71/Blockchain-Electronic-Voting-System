@@ -68,9 +68,9 @@ This will automatically:
 5. Start the frontend apps
 
 ### Access Points
-- **Main App:** http://localhost:5173 — Create elections and cast votes
-- **Explorer:** http://localhost:5174/explorer.html — View on-chain ballot logs
-- **Dashboard:** http://localhost:5175/dashboard.html — View election statistics
+- **Main App:** http://localhost:5173 — Create elections, manage users, and cast votes
+- **Blockchain Explorer:** http://localhost:5174/explorer.html — Public ledger auditor with a Universal Hash Verifier
+- **Database Dashboard:** http://localhost:5175/dashboard.html — Inspector tool for raw off-chain MongoDB data
 
 ## Project Structure
 
