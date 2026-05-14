@@ -9,16 +9,16 @@ const { v4: uuidv4 } = require('uuid');
 const DEMO_PASSWORD = 'demo123';
 
 const DEMO_USERS = [
-  { username: 'admin',         email: 'admin@evoting.local',  role: 'admin',  isVerified: true },
-  { username: 'rahul_kumar',   email: 'rahul@demo.local',     role: 'voter',  isVerified: true },
-  { username: 'priya_sharma',  email: 'priya@demo.local',     role: 'voter',  isVerified: true },
-  { username: 'amit_singh',    email: 'amit@demo.local',      role: 'voter',  isVerified: true },
-  { username: 'neha_gupta',    email: 'neha@demo.local',      role: 'voter',  isVerified: true },
-  { username: 'arjun_verma',   email: 'arjun@demo.local',     role: 'voter',  isVerified: true },
-  { username: 'sneha_joshi',   email: 'sneha@demo.local',     role: 'voter',  isVerified: true },
-  { username: 'vikram_meena',  email: 'vikram@demo.local',    role: 'voter',  isVerified: true },
-  { username: 'ananya_das',    email: 'ananya@demo.local',    role: 'voter',  isVerified: true },
-  { username: 'rohit_patel',   email: 'rohit@demo.local',     role: 'voter',  isVerified: false }, // pending approval demo
+  { username: 'admin',         email: 'admin@evoting.local',  role: 'admin',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'rahul_kumar',   email: 'rahul@demo.local',     role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'priya_sharma',  email: 'priya@demo.local',     role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'amit_singh',    email: 'amit@demo.local',      role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'neha_gupta',    email: 'neha@demo.local',      role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'arjun_verma',   email: 'arjun@demo.local',     role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'sneha_joshi',   email: 'sneha@demo.local',     role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'vikram_meena',  email: 'vikram@demo.local',    role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'ananya_das',    email: 'ananya@demo.local',    role: 'voter',  isVerified: true, verificationStatus: 'verified' },
+  { username: 'rohit_patel',   email: 'rohit@demo.local',     role: 'voter',  isVerified: false, verificationStatus: 'pending' }, // pending approval demo
 ];
 
 const now = new Date();
