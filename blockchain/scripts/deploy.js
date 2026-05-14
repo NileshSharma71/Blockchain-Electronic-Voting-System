@@ -6,14 +6,14 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with:", deployer.address);
 
-  // Deploy ReputationRegistry
-  const ReputationRegistry = await ethers.getContractFactory("ReputationRegistry");
-  const reputationRegistry = await ReputationRegistry.deploy();
-  await reputationRegistry.waitForDeployment();
-  const repAddr = await reputationRegistry.getAddress();
-  console.log("ReputationRegistry deployed to:", repAddr);
+  // Deploy BallotAuditRegistry
+  const BallotAuditRegistry = await ethers.getContractFactory("BallotAuditRegistry");
+  const ballotAuditRegistry = await BallotAuditRegistry.deploy();
+  await ballotAuditRegistry.waitForDeployment();
+  const contractAddr = await ballotAuditRegistry.getAddress();
+  console.log("BallotAuditRegistry deployed to:", contractAddr);
 
-  // Write addresses to backend/.env
+  // Write address to backend/.env
   const backendEnvPath = path.resolve(__dirname, "../../backend/.env");
 
   let envContent = "";
@@ -35,19 +35,19 @@ async function main() {
     return content + `\n${key}=${value}`;
   }
 
-  envContent = setEnvVar(envContent, "REPUTATION_REGISTRY_ADDRESS", repAddr);
+  envContent = setEnvVar(envContent, "BALLOT_AUDIT_REGISTRY_ADDRESS", contractAddr);
 
   fs.writeFileSync(backendEnvPath, envContent);
-  console.log("Contract addresses written to backend/.env");
+  console.log("Contract address written to backend/.env");
 
-  // Export ABIs for frontend explorer
+  // Export ABI for frontend explorer
   const abiDir = path.resolve(__dirname, "../../frontend/src/abis");
   if (!fs.existsSync(abiDir)) {
     fs.mkdirSync(abiDir, { recursive: true });
   }
 
   const contracts = [
-    { name: "ReputationRegistry", address: repAddr },
+    { name: "BallotAuditRegistry", address: contractAddr },
   ];
 
   const deployInfo = {};
