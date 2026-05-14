@@ -34,6 +34,9 @@ export const getElection = (id) =>
 export const createElection = (data) =>
   instance.post('/api/elections', data).then(r => r.data);
 
+export const closeElection = (id) =>
+  instance.patch(`/api/elections/${id}/close`).then(r => r.data);
+
 // Ballots
 export const castBallot = (electionId, candidateId) =>
   instance.post('/api/ballots', { electionId, candidateId }).then(r => r.data);

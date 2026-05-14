@@ -3,7 +3,8 @@ const Election = require('../models/Election');
 const Ballot = require('../models/Ballot');
 const { authMiddleware, adminOnly, verifiedOnly } = require('../middleware/auth');
 const { sha256 } = require('../utils/hash');
-const { broadcastNewElection } = require('../services/socketService');
+const { broadcastNewElection, broadcastElectionResult } = require('../services/socketService');
+const { tallyElection } = require('../services/tallyService');
 
 const router = express.Router();
 
@@ -153,6 +154,34 @@ router.get('/leaderboard/voters', async (req, res) => {
     res.json({ voters: aggregation });
   } catch (e) {
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/elections/:id/close — admin force-end an active election
+router.patch('/:id/close', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const election = await Election.findById(req.params.id);
+    if (!election) return res.status(404).json({ error: 'Election not found' });
+    if (election.status === 'completed') {
+      return res.status(400).json({ error: 'Election is already completed' });
+    }
+    if (election.status === 'upcoming') {
+      return res.status(400).json({ error: 'Cannot close an election that has not started yet' });
+    }
+
+    // Set end time to now and mark completed
+    election.endTime = new Date();
+    election.status = 'completed';
+    await election.save();
+
+    // Tally and log result on-chain
+    const result = await tallyElection(election._id);
+    broadcastElectionResult(election._id, result);
+
+    res.json({ message: 'Election closed and tallied successfully', election, result });
+  } catch (e) {
+    console.error('Election close error:', e);
+    res.status(500).json({ error: e.message || 'Internal server error' });
   }
 });
 

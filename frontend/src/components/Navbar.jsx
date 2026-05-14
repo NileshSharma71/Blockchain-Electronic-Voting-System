@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useState, useEffect } from 'react';
+import { getAdminStats } from '../utils/api';
 
 const DEMO_USERS = [
   { label: 'admin', email: 'admin@evoting.local', pass: 'demo123' },
@@ -17,11 +18,18 @@ export default function Navbar() {
   const location = useLocation();
   const [time, setTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [switching, setSwitching] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), 30000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      getAdminStats().then(s => setPendingCount(s.pendingUsers || 0)).catch(() => {});
+    }
+  }, [user]);
 
   const isActive = (path) => location.pathname === path ? 'active' : '';
 
@@ -51,7 +59,17 @@ export default function Navbar() {
           <Link to="/profile" className={`win-taskbar-item ${isActive('/profile')}`}>👤 Account</Link>
         )}
         {user?.role === 'admin' && (
-          <Link to="/admin" className={`win-taskbar-item ${isActive('/admin')}`}>⚙️ Admin</Link>
+          <Link to="/admin" className={`win-taskbar-item ${isActive('/admin')}`} style={{ position: 'relative' }}>
+            ⚙️ Admin
+            {pendingCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4,
+                background: '#c00', color: '#fff', borderRadius: '50%',
+                width: 16, height: 16, fontSize: 10, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{pendingCount}</span>
+            )}
+          </Link>
         )}
       </div>
       <div className="win-taskbar-divider" />

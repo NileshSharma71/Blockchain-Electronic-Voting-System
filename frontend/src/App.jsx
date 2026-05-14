@@ -3,6 +3,7 @@ import { AuthProvider } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
+import ToastContainer from './components/ToastContainer';
 import Home from './pages/Home';
 import ElectionDetail from './pages/ElectionDetail';
 import CreateElection from './pages/CreateElection';
@@ -17,6 +18,7 @@ export default function App() {
           <AuthProvider>
             <div className="win-desktop">
               <Navbar />
+              <ToastContainer />
               <div className="app-container">
                 <Routes>
                   <Route path="/" element={<Home />} />
