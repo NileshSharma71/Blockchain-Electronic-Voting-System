@@ -1,14 +1,12 @@
-const { canUserVote, computeEffectiveReputation } = require('../services/reputationMath');
-
-function withUserMetrics(user) {
+/**
+ * Simplified user view for e-voting system.
+ * No reputation or decay calculations needed.
+ */
+function toSafeUser(user) {
   const plain = user?.toObject ? user.toObject() : { ...user };
-  const effectiveReputation = Number(computeEffectiveReputation(plain).toFixed(2));
-
-  return {
-    ...plain,
-    effectiveReputation,
-    canVote: canUserVote(plain),
-  };
+  // Remove sensitive fields
+  delete plain.passwordHash;
+  return plain;
 }
 
-module.exports = { withUserMetrics };
+module.exports = { toSafeUser };

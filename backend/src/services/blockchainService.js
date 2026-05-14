@@ -1,12 +1,16 @@
 require('dotenv').config();
 const { ethers } = require('ethers');
 
-// Simplified ABI for the new ERDS ReputationRegistry
-const REPUTATION_ABI = [
-  'function logUpdate(bytes32 userIdHash, bytes32 initialHash, bytes32 changeHash, bytes32 finalHash) external',
-  'function getUpdate(uint256 index) external view returns (bytes32, bytes32, bytes32, bytes32, uint64, bool)',
-  'function totalUpdates() external view returns (uint256)',
-  'event ReputationUpdated(uint256 indexed updateIndex, bytes32 indexed userIdHash, bytes32 initialHash, bytes32 changeHash, bytes32 finalHash, uint64 timestamp)',
+// ABI for the BallotAuditRegistry contract
+const BALLOT_AUDIT_ABI = [
+  'function logBallot(bytes32 voterIdHash, bytes32 ballotHash, bytes32 electionIdHash) external',
+  'function logResult(bytes32 electionIdHash, bytes32 resultHash) external',
+  'function getBallot(uint256 index) external view returns (bytes32, bytes32, bytes32, uint64, bool)',
+  'function getResult(uint256 index) external view returns (bytes32, bytes32, uint64, bool)',
+  'function totalBallots() external view returns (uint256)',
+  'function totalResults() external view returns (uint256)',
+  'event BallotLogged(uint256 indexed ballotIndex, bytes32 indexed electionIdHash, bytes32 voterIdHash, bytes32 ballotHash, uint64 timestamp)',
+  'event ResultLogged(uint256 indexed resultIndex, bytes32 indexed electionIdHash, bytes32 resultHash, uint64 timestamp)',
 ];
 
 let provider = null;
@@ -42,14 +46,24 @@ function getContract(address, abi, useWallet = true) {
 
 // ── WRITE ──
 
-async function logReputationUpdate(userIdHash, initialHash, changeHash, finalHash) {
+async function logBallotOnChain(voterIdHash, ballotHash, electionIdHash) {
   try {
-    const c = getContract(process.env.REPUTATION_REGISTRY_ADDRESS, REPUTATION_ABI);
+    const c = getContract(process.env.BALLOT_AUDIT_REGISTRY_ADDRESS, BALLOT_AUDIT_ABI);
     if (!c) return null;
-    const tx = await c.logUpdate(userIdHash, initialHash, changeHash, finalHash);
+    const tx = await c.logBallot(voterIdHash, ballotHash, electionIdHash);
     await tx.wait();
     return tx.hash;
-  } catch (e) { console.warn('logReputationUpdate failed:', e.message); return null; }
+  } catch (e) { console.warn('logBallotOnChain failed:', e.message); return null; }
+}
+
+async function logResultOnChain(electionIdHash, resultHash) {
+  try {
+    const c = getContract(process.env.BALLOT_AUDIT_REGISTRY_ADDRESS, BALLOT_AUDIT_ABI);
+    if (!c) return null;
+    const tx = await c.logResult(electionIdHash, resultHash);
+    await tx.wait();
+    return tx.hash;
+  } catch (e) { console.warn('logResultOnChain failed:', e.message); return null; }
 }
 
 // ── READ (for explorer) ──
@@ -66,33 +80,60 @@ async function getHealth() {
 async function getStats() {
   const p = getProvider();
   const blockNumber = await p.getBlockNumber();
-  let totalReputationUpdates = 0;
-  try { 
-    const c = getContract(process.env.REPUTATION_REGISTRY_ADDRESS, REPUTATION_ABI, false); 
-    if (c) totalReputationUpdates = Number(await c.totalUpdates()); 
+  let totalBallots = 0;
+  let totalResults = 0;
+  try {
+    const c = getContract(process.env.BALLOT_AUDIT_REGISTRY_ADDRESS, BALLOT_AUDIT_ABI, false);
+    if (c) {
+      totalBallots = Number(await c.totalBallots());
+      totalResults = Number(await c.totalResults());
+    }
   } catch {}
-  return { blockNumber, totalReputationUpdates };
+  return { blockNumber, totalBallots, totalResults };
 }
 
-async function getUpdateEvents(page = 1, limit = 20) {
-  const c = getContract(process.env.REPUTATION_REGISTRY_ADDRESS, REPUTATION_ABI, false);
+async function getBallotEvents(page = 1, limit = 20) {
+  const c = getContract(process.env.BALLOT_AUDIT_REGISTRY_ADDRESS, BALLOT_AUDIT_ABI, false);
   if (!c) return { items: [], total: 0 };
-  const total = Number(await c.totalUpdates());
+  const total = Number(await c.totalBallots());
   const start = Math.max(1, total - page * limit + 1);
   const end = total - (page - 1) * limit;
   const items = [];
   for (let i = end; i >= start; i--) {
     if (i <= 0) break;
     try {
-      const [userIdHash, initialHash, changeHash, finalHash, timestamp, exists] = await c.getUpdate(i);
+      const [voterIdHash, ballotHash, electionIdHash, timestamp, exists] = await c.getBallot(i);
       if (exists) {
         items.push({
-          updateIndex: i,
-          userIdHash,
-          initialHash,
-          changeHash,
-          finalHash,
-          timestamp: Number(timestamp)
+          ballotIndex: i,
+          voterIdHash,
+          ballotHash,
+          electionIdHash,
+          timestamp: Number(timestamp),
+        });
+      }
+    } catch { break; }
+  }
+  return { items, total };
+}
+
+async function getResultEvents(page = 1, limit = 20) {
+  const c = getContract(process.env.BALLOT_AUDIT_REGISTRY_ADDRESS, BALLOT_AUDIT_ABI, false);
+  if (!c) return { items: [], total: 0 };
+  const total = Number(await c.totalResults());
+  const start = Math.max(1, total - page * limit + 1);
+  const end = total - (page - 1) * limit;
+  const items = [];
+  for (let i = end; i >= start; i--) {
+    if (i <= 0) break;
+    try {
+      const [electionIdHash, resultHash, timestamp, exists] = await c.getResult(i);
+      if (exists) {
+        items.push({
+          resultIndex: i,
+          electionIdHash,
+          resultHash,
+          timestamp: Number(timestamp),
         });
       }
     } catch { break; }
@@ -101,6 +142,10 @@ async function getUpdateEvents(page = 1, limit = 20) {
 }
 
 module.exports = {
-  logReputationUpdate,
-  getHealth, getStats, getUpdateEvents,
+  logBallotOnChain,
+  logResultOnChain,
+  getHealth,
+  getStats,
+  getBallotEvents,
+  getResultEvents,
 };

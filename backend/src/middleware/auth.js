@@ -15,22 +15,21 @@ function authMiddleware(req, res, next) {
   }
 }
 
-function reviewerOnly(req, res, next) {
-  if (!req.user || !req.user.is_reviewer) {
-    return res.status(403).json({ error: 'Reviewer access required' });
+function adminOnly(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
   }
   next();
 }
 
 /**
- * Block unverified users from performing actions (voting, submitting).
- * Seed/reviewer users auto-verified at creation bypass this check.
+ * Block unverified users from performing actions (voting).
  */
 function verifiedOnly(req, res, next) {
   if (!req.user || !req.user.isVerified) {
-    return res.status(403).json({ error: 'Account not verified. An admin must approve your account before you can participate.' });
+    return res.status(403).json({ error: 'Account not verified. An admin must approve your account before you can vote.' });
   }
   next();
 }
 
-module.exports = { authMiddleware, reviewerOnly, verifiedOnly };
+module.exports = { authMiddleware, adminOnly, verifiedOnly };

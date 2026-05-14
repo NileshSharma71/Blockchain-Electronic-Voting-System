@@ -14,9 +14,9 @@ if (!process.env.JWT_SECRET) {
 }
 
 const authRoutes = require('./routes/auth');
-const newsRoutes = require('./routes/news');
-const votesRoutes = require('./routes/votes');
-const decisionsRoutes = require('./routes/decisions');
+const electionRoutes = require('./routes/elections');
+const ballotRoutes = require('./routes/ballots');
+const resultRoutes = require('./routes/results');
 const adminRoutes = require('./routes/admin');
 const blockchainRoutes = require('./routes/blockchain');
 
@@ -25,7 +25,6 @@ const PORT = process.env.PORT || 3001;
 
 // HTTPS enforcement in production
 if (process.env.NODE_ENV === 'production') {
-  // Redirect HTTP to HTTPS
   app.use((req, res, next) => {
     if (req.header('x-forwarded-proto') !== 'https') {
       res.redirect(`https://${req.header('host')}${req.url}`);
@@ -34,7 +33,6 @@ if (process.env.NODE_ENV === 'production') {
     }
   });
 
-  // Add HSTS header
   app.use((req, res, next) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     next();
@@ -57,9 +55,9 @@ app.use(express.urlencoded({ limit: '1mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/news', newsRoutes);
-app.use('/api/votes', votesRoutes);
-app.use('/api/decisions', decisionsRoutes);
+app.use('/api/elections', electionRoutes);
+app.use('/api/ballots', ballotRoutes);
+app.use('/api/results', resultRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/blockchain', blockchainRoutes);
 
@@ -91,8 +89,6 @@ connectDB().then(async () => {
   });
 
   initSocket(io);
-
-  // Make io available globally for other modules
   global.io = io;
 
   server.listen(PORT, () => {

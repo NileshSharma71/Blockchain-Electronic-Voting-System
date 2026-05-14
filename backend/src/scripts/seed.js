@@ -1,10 +1,9 @@
-const { seedDemoDataset } = require('../services/demoSeedService');
+const { seedDemoData } = require('../services/seedService');
 
 async function seedData() {
   try {
-    const result = await seedDemoDataset();
-    const action = result.resetApplied ? 'reset and reseeded' : 'verified';
-    console.log(`[Seed] Demo dataset ${action}: ${result.items} items, ${result.votes} votes, ${result.reputationEvents} reputation events.`);
+    const result = await seedDemoData();
+    console.log(`[Seed] Demo data ready: ${result.users} users, ${result.elections} elections.`);
   } catch (err) {
     console.error('[Seed] Failed:', err);
   }

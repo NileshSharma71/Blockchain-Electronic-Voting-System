@@ -1,47 +1,52 @@
-const User = require('../models/User');
-const ReputationSnapshot = require('../models/ReputationSnapshot');
-const blockchainService = require('./blockchainService');
-const { sha256, hexToBytes32 } = require('../utils/hash');
+const Election = require('../models/Election');
+const { tallyElection } = require('./tallyService');
+const { broadcastElectionResult } = require('./socketService');
 
-// 24 hours interval
-const INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Check every 30 seconds for elections that need to be closed
+const INTERVAL_MS = 30 * 1000;
 
-async function runReputationSnapshot() {
+async function checkAndCloseElections() {
   try {
-    console.log('[Cron] Starting reputation snapshot process...');
-    
-    // Fetch all users and sort to ensure deterministic ordering
-    const users = await User.find({}, { username: 1, reputation: 1 }).sort({ _id: 1 });
-    
-    // Build a deterministic string of user reputations
-    let stateString = '';
-    for (const u of users) {
-      stateString += `${u._id}:${u.reputation}|`;
-    }
-    
-    const stateHash = sha256(stateString);
-    
-    const lastSnapshot = await ReputationSnapshot.findOne().sort({ epochNumber: -1 });
-    const nextEpoch = lastSnapshot ? lastSnapshot.epochNumber + 1 : 1;
-    
-    const snapshot = new ReputationSnapshot({
-      epochNumber: nextEpoch,
-      stateHash,
-      totalUsers: users.length
-    });
-    
-    await snapshot.save();
-    console.log(`[Cron] Database snapshot saved for epoch ${nextEpoch}`);
+    const now = new Date();
 
-    // Blockchain commit removed: ERDS uses event-based logging directly in reputationService
+    // Find active elections whose endTime has passed
+    const expiredElections = await Election.find({
+      status: 'active',
+      endTime: { $lte: now },
+    });
+
+    for (const election of expiredElections) {
+      console.log(`[Cron] Auto-closing election: ${election.title}`);
+      try {
+        const result = await tallyElection(election._id);
+        broadcastElectionResult(election._id, result);
+        console.log(`[Cron] Election "${election.title}" tallied. Winner: ${result.winnerName || 'Tie'}`);
+      } catch (e) {
+        console.error(`[Cron] Failed to tally election ${election._id}:`, e.message);
+      }
+    }
+
+    // Also activate upcoming elections whose startTime has passed
+    const readyElections = await Election.find({
+      status: 'upcoming',
+      startTime: { $lte: now },
+    });
+
+    for (const election of readyElections) {
+      election.status = 'active';
+      await election.save();
+      console.log(`[Cron] Activated election: ${election.title}`);
+    }
   } catch (error) {
-    console.error('[Cron] Reputation snapshot failed:', error.message);
+    console.error('[Cron] Election check failed:', error.message);
   }
 }
 
 function initCron() {
-  console.log(`[Cron] Initialized with interval ${INTERVAL_MS}ms`);
-  setInterval(runReputationSnapshot, INTERVAL_MS);
+  console.log(`[Cron] Election monitor initialized (checking every ${INTERVAL_MS / 1000}s)`);
+  setInterval(checkAndCloseElections, INTERVAL_MS);
+  // Run once immediately at startup
+  checkAndCloseElections();
 }
 
-module.exports = { initCron, runReputationSnapshot };
+module.exports = { initCron, checkAndCloseElections };
