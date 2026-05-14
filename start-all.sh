@@ -3,7 +3,7 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
-echo "Starting NewsVerify..."
+echo "🗳️  Starting Blockchain Electronic Voting System..."
 
 # Cleanup on exit
 cleanup() {
@@ -33,22 +33,22 @@ sleep 1
 
 # Auto-install dependencies if missing
 if [ ! -d "$DIR/blockchain/node_modules" ]; then
-  echo "Installing blockchain dependencies..."
+  echo "📦 Installing blockchain dependencies..."
   cd "$DIR/blockchain" && npm install --silent > /dev/null 2>&1
 fi
 
 if [ ! -d "$DIR/backend/node_modules" ]; then
-  echo "Installing backend dependencies..."
+  echo "📦 Installing backend dependencies..."
   cd "$DIR/backend" && npm install --silent > /dev/null 2>&1
 fi
 
 if [ ! -d "$DIR/frontend/node_modules" ]; then
-  echo "Installing frontend dependencies..."
+  echo "📦 Installing frontend dependencies..."
   cd "$DIR/frontend" && npm install --silent > /dev/null 2>&1
 fi
 
 # 1. Start Hardhat node
-echo "Starting local blockchain (Hardhat)..."
+echo "⛓️  Starting local blockchain (Hardhat)..."
 cd "$DIR/blockchain" && npx hardhat node > /dev/null 2>&1 &
 HARDHAT_PID=$!
 
@@ -60,11 +60,11 @@ for i in $(seq 1 15); do
 done
 
 # 2. Deploy contracts
-echo "Deploying smart contracts..."
+echo "📜 Deploying BallotAuditRegistry smart contract..."
 cd "$DIR/blockchain" && npx hardhat run scripts/deploy.js --network localhost 2>&1 | grep -E "deployed to:|written to|exported" || true
 
 # 3. Start backend
-echo "Starting backend server..."
+echo "🔧 Starting backend server..."
 cd "$DIR/backend" && node src/server.js > /dev/null 2>&1 &
 BACKEND_PID=$!
 
@@ -76,19 +76,29 @@ for i in $(seq 1 30); do
 done
 
 # 4. Start frontends
-echo "Starting frontends..."
+echo "🎨 Starting frontends..."
 cd "$DIR/frontend" && VITE_APP=main npx vite --host > /dev/null 2>&1 &
 cd "$DIR/frontend" && VITE_APP=explorer npx vite --host > /dev/null 2>&1 &
 cd "$DIR/frontend" && VITE_APP=dashboard npx vite --host > /dev/null 2>&1 &
 sleep 3
 
-echo "--- Explainable Reputation Decay System (ERDS) Demo is running ---"
-echo "Main App:             http://localhost:5173"
-echo "Reputation Explorer:  http://localhost:5174/explorer.html"
-echo "Off-Chain Storage:    http://localhost:5175/dashboard.html"
 echo ""
-echo "Demo Accounts (pass: demo123): dp, arjun_sharma, priya_meena"
+echo "=============================================="
+echo "  🗳️  Blockchain E-Voting System is running!"
+echo "=============================================="
 echo ""
-echo "Press Ctrl+C to stop"
+echo "  Main App:        http://localhost:5173"
+echo "  Explorer:        http://localhost:5174/explorer.html"
+echo "  Dashboard:       http://localhost:5175/dashboard.html"
+echo ""
+echo "  Demo Accounts (password: demo123):"
+echo "    admin         — admin@evoting.local (Admin)"
+echo "    rahul_kumar   — rahul@demo.local (Voter)"
+echo "    priya_sharma  — priya@demo.local (Voter)"
+echo "    amit_singh    — amit@demo.local (Voter)"
+echo "    neha_gupta    — neha@demo.local (Voter)"
+echo ""
+echo "  Press Ctrl+C to stop all services"
+echo ""
 
 wait
